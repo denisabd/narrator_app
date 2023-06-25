@@ -1,0 +1,304 @@
+---
+title: "NLG with narrator"
+author: "Denis Abdullin"
+format: 
+  revealjs:
+    embed-resources: true
+    transition: slide
+    width: 1380
+    height: 1080
+    fontsize: 2.5em
+    logo: hex.png
+    css: logo.css
+editor: visual
+---
+
+## WHOAMI {auto-animate="true"}
+
+::: incremental
+-   Data Science in a Corporate
+-   7 years as individual contributor and manager
+-   Johnson & Johnson \>\> Merck
+-   Interests:
+    -   NLG
+
+    -   Web Applications
+
+    -   Predictive Analytics
+
+    -   Time Series
+:::
+
+## Package {auto-animate="true"}
+
+`narrator` is a template-based NLG system that produces written narratives from a data set.
+
+```{r}
+#| echo: true
+#| eval: false
+install.packages("devtools")
+devtools::install_github("denisabd/narrator")
+
+library(narrator)
+```
+
+```{r}
+library(narrator)
+```
+
+## NLG Systems {auto-animate="true"}
+
+There are several approaches for creating text from data, two most used ones are:
+
+-   Template-based NLG system
+-   ML-based NLG system
+
+## Templates in R {auto-animate="true"}
+
+There are many packages that accommodate different types of templates in R, but `glue` is a part of tidyverse and very easy to use. Simple template can look like:
+
+```{r}
+template <- "Temperatures on {date} will reach the max of {max_temp} at {max_hour}."
+cat(template)
+```
+
+## 
+
+When adding the actual variable values we get the text:
+
+```{r}
+#| echo: true
+#| 
+date <- "June 27th"
+max_temp <- "28C"
+max_hour <- "3PM"
+
+glue::glue(template)
+```
+
+## Simple Example {auto-animate="true"}
+
+```{r}
+#| echo: true
+sales %>%
+narrate_descriptive(measure = "Sales",
+            dimensions = "Product")
+```
+
+## Converting to HTML {auto-animate="true"}
+
+```{r}
+#| echo: true
+sales %>%
+narrate_descriptive(measure = "Sales",
+            dimensions = "Product") %>%
+  to_html()
+```
+
+To create narratives for reports, application convert it using `to_html()`, you can also add formatting to the numbers with `format_numbers = TRUE` in any `narrate` function.
+
+## Arguments {auto-animate="true"}
+
+```{r}
+#| echo: true
+sales %>%
+narrate_descriptive(measure = "Sales",
+            dimensions = "Product", 
+            format_numbers = TRUE) %>%
+  to_html()
+```
+
+## Arguments {auto-animate="true"}
+
+```{r}
+#| echo: true
+sales %>%
+narrate_descriptive(measure = "Sales",
+            dimensions = "Product", 
+            format_numbers = TRUE,
+            coverage = 0.8) %>%
+  to_html()
+```
+
+## Arguments {auto-animate="true"}
+
+```{r}
+#| echo: true
+sales %>%
+narrate_descriptive(measure = "Sales",
+            dimensions = "Product", 
+            format_numbers = TRUE,
+            coverage = 0.8,
+            coverage_limit = 3) %>%
+  to_html()
+```
+
+## Summarization {auto-animate="true"}
+
+narrator works with both aggregated and non-aggregated data, one of the key features to make sure the narratives are correct is to use the right `summarization` option. By default it uses `sum`, but you can alternatively use `average` or `count`
+
+```{r}
+#| echo: true
+sales %>%
+  narrate_descriptive(
+    measure = "Order ID", 
+    dimensions = "Product",
+    summarization = "count"
+  )
+```
+
+## Templates {auto-animate="true"}
+
+For a template-based system it is very useful to be able to change certain template and make output more flexible.
+
+```{r}
+sales %>%
+  narrate_descriptive(
+    measure = "Order ID", 
+    dimensions = "Product",
+    summarization = "count", 
+    template_total = "{measure} Volume across all {pluralize(dimension_one)} is equal to {total}."
+  )
+```
+
+## Variables {auto-animate="true"}
+
+Variables available for narrative generation can be accessed using `return_data = TRUE` argument in all `narrate` functions.
+
+```{r}
+narrative_list <- sales %>%
+  narrate_descriptive(
+    measure = "Sales", 
+    dimensions = "Product",
+    summarization = "sum", 
+    format_numbers = TRUE,
+    return_data = TRUE) 
+
+listviewer::jsonedit(narrative_list, width = 1200, height = 800)
+```
+
+## List Templates {auto-animate="true"}
+
+To see all available templates at once use `list_templates()` function.
+
+```{r}
+templates <- list_templates()
+
+templates %>%
+  dplyr::filter(type == "descriptive") %>%
+  dplyr::select(-type) %>%
+  knitr::kable()
+```
+
+## Trend Narratives {auto-animate="true"}
+
+Great way to instantly generate insights around the development of certain metrics in time is creating so called trend narratives with `narrate_trend()` function. Let's create a dataset with dates:
+
+```{r}
+#| echo: true
+data <- sales %>%
+ dplyr::mutate(Date = lubridate::floor_date(Date, unit = "month")) %>%
+ dplyr::group_by(Region, Product, Date) %>%
+ dplyr::summarise(Sales = sum(Sales, na.rm = TRUE))
+
+data %>%
+  dplyr::ungroup() %>%
+  dplyr::slice(1:8) %>%
+  reactable::reactable(bordered = TRUE, striped = TRUE)
+```
+
+```{r}
+data %>%
+  dplyr::group_by(Product, Date) %>%
+  dplyr::summarise(Sales = sum(Sales)) %>%
+  echarts4r::e_charts(Date) %>%
+  echarts4r::e_line(Sales)
+  
+```
+
+## Trend Narratives {auto-animate="true"}
+
+Basic trend narrative analyzes the data year-over-year, `narrator` requires to have a date/datetime stamps for creating these
+
+## Year-over-Year {auto-animate="true"}
+
+```{r}
+#| echo: true
+narrate_trend(data,
+              type = "yoy") %>%
+  to_html()
+```
+
+## Previous Period {auto-animate="true"}
+
+```{r}
+#| echo: true
+narrate_trend(data, 
+              type = "previous period") %>%
+  to_html()
+```
+
+## Same Period Last Year {auto-animate="true"}
+
+```{r}
+#| echo: true
+narrate_trend(data, 
+              type = 3) %>%
+  to_html()
+```
+
+## ChatGPT {auto-animate="true"}
+
+`narrator` can use ChatGPT API to improve your narratives. To do so you
+can either set `use_chatgpt = TRUE` in any function that creates
+narrative or use `enhance_narrative()` to improve existing narrative
+output. You can supply `list` or `character`, function will collapse all
+text into a sentence and send a request to Chat GPT. Set your token in
+`.Renviron` file as `OPENAI_API_KEY` or supply it to a function as
+`openai_api_key` argument.
+
+This functionality requires you to setup the ChatGPT API key and make it
+accessible from R.
+
+## ChatGPT {auto-animate="true"}
+
+```{r results='asis'}
+#| echo: true
+narrative <- sales %>%
+  narrate_descriptive(
+    measure = "Sales",
+    dimensions = c("Region", "Product"),
+    use_chatgpt = TRUE
+  )
+
+cat(narrative)
+```
+
+## Translation {auto-animate="true"}
+
+Translate you text using `translate_narrative()` function, specify `language` argument in English:
+
+```{r results='asis'}
+#| echo: true
+translation <- translate_narrative(narrative, language = "Czech")
+cat(translation)
+```
+
+## Summarization {auto-animate="true"}
+
+If your output is too verbose you can summarize it with `summarize_narrative()` function:
+
+```{r results='asis'}
+#| echo: true
+summarization <- summarize_narrative(narrative)
+cat(summarization)
+```
+
+## Resources {auto-animate="true"}
+
+- [Ehud Reiter's Blog](https://www.ehudreiter.com) 
+  NLG Professor and Chief Scientist for Arria NLG
+
+- [Demo Application](https://deny.shinyapps.io/narrator_app/)
+
+- [narrator website](https://denisabd.github.io/narrator/)
